@@ -15,5 +15,6 @@
 # 06-Feb-2019  Douglas Reis     - Initial Version. 
 # ********************************************************************************************
 
-TOOLCHAIN_HOME            ?= D:/SW/Toolchain/cygwin/
-MIDDLEWARE_HOME          := D:/Github/Middleware/
+CFLAGS                 += -O3 -g0
+
+ profileRequisites:

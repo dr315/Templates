@@ -15,5 +15,8 @@
 # 06-Feb-2019  Douglas Reis     - Initial Version. 
 # ********************************************************************************************
 
-TOOLCHAIN_HOME            ?= D:/SW/Toolchain/cygwin/
-MIDDLEWARE_HOME          := D:/Github/Middleware/
+# Make does not offer a recursive wildcard function, so here's one for files:
+rfwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rfwildcard,$d/,$2))
+
+# Make does not offer a recursive wildcard function, so here's one for directories:
+rdwildcard=$(sort $(dir $(call rfwildcard,$1,$2)))

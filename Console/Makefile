@@ -1,105 +1,99 @@
 #*********************************************************************************************
-# @file     Makefile
-# @project  SCRS
+# @file     
+# @project  
 # @platform 
 # @device   
 # @author   Douglas Reis
 # @version  0.1
-# @date     19-Fev-2018
-# @brief    
-#         CPU     : cm3, arm11 and etc.
-#         PROFILE : debug or release
-#         BOARD   : MP5, MP15, MP30...
+# @date     06-Feb-2019
+# @brief    Configure the source to be use during compilation of the Project    
 #
 # @history
 #
 # When         Who               What
 # -----------  ----------------  -------------------------------------------------------------
-# 06-Dec-2017  Douglas Reis     - Initial Version. 
+# 06-Feb-2019  Douglas Reis     - Initial Version. 
 # ********************************************************************************************
 
--include make/config.mk
--include make/$(PROFILE).mk
--include make/$(CPU).mk
+MKFILE_DIR      := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+DIR_NAME        := $(notdir $(patsubst %/,%,$(MKFILE_DIR)))
 
-OUTPUT_DIR                := ~build/$(CPU)/$(PROFILE)
-OUTPUT_NAME               := $(TARGET_NAME)
-MODULE_TYPE               ?= 2                           
-                            
-#Adding c files specific for each board
-SRC_PATH                  := src
+CPU             ?= x86
+PROFILE         ?= release
 
-LFLAGS                    += 
-                             
-
-LFLAGS                    += 
-
-CFLAGS                    +=
-                             
-                             
-INC_DIRS                  += src
-                                                       
-CFLAGS                    += $(addprefix -I, $(INC_DIRS))
+include  $(MKFILE_DIR)/make/functions.mk
+-include $(MKFILE_DIR)/make/help.mk
+include  $(MKFILE_DIR)/make/config.mk
+include  $(MKFILE_DIR)/make/cpu/$(CPU).mk
+include  $(MKFILE_DIR)/make/profile/$(PROFILE).mk
+include  $(MKFILE_DIR)/make/dependencies.mk
 
 
-#Searching for c files to be compiled
-C_FILES                   := $(shell find $(SRC_PATH) -type f -name "*.c")
-OBJS                      := $(subst $(SRC_PATH),$(OUTPUT_DIR)/obj,$(C_FILES))
-OBJS                      := $(OBJS:.c=.o)
-DEPS                      := $(OBJS:.o=.d)
+SOURCE_HOME   := src
 
-CPP_FILES                 := $(shell find $(SRC_PATH) -type f -name "*.cpp")
-CPP_OBJS                  := $(subst $(SRC_PATH),$(OUTPUT_DIR)/cpp_obj,$(CPP_FILES))
-CPP_OBJS                  := $(CPP_OBJS:.cpp=.o)
-DEPS                      += $(CPP_OBJS:.o=.d)
+TARGET_NAME   ?= $(DIR_NAME)
+BUILD_DIR     ?= ~build/$(CPU)/$(PROFILE)
+
+# INCDIRS       += $(shell find $(SOURCE_HOME) -type d)
+INCDIRS       += $(call rdwildcard,$(SOURCE_HOME)/,*)
+
+# SRC           := $(shell find $(SOURCE_HOME) -type f -name "*.c")
+SRC           := $(call rfwildcard,$(SOURCE_HOME)/,*.c)
+OBJS          := $(addprefix $(BUILD_DIR)/, $(SRC))
+OBJS          := $(OBJS:.c=.o)
+DEPS          := $(OBJS:.o=.d)
+
+#CPP_FILES     := $(shell find $(SRC) -type f -name "*.cpp")
+CPP_FILES     := $(call rfwildcard,$(SOURCE_HOME)/,*.cpp)
+CPP_OBJS      := $(addprefix $(BUILD_DIR)/, $(CPP_FILES))
+#CPP_OBJS      := $(subst $(SOURCE_HOME),$(BUILD_DIR)/cpp_obj,$(CPP_FILES))
+CPP_OBJS      := $(CPP_OBJS:.cpp=.o)
+DEPS          += $(CPP_OBJS:.o=.d)
+
+INCFLAGS      := $(addprefix -I, $(INCDIRS))
+CFLAGS        += -Wall -Werror -fdata-sections -ffunction-sections
+
                           
 empty                     :=
 space                     := $(empty) $(empty)
 
-.PHONY: all static binary
+PHONY: clean static binary help
 
-all : binary 
+static: prerequisites log $(BUILD_DIR)/lib$(TARGET_NAME).a	
 
-binary: printInfo $(OUTPUT_DIR)/$(OUTPUT_NAME).exe
+binary: prerequisites log $(BUILD_DIR)/$(TARGET_NAME).exe	
 
 #Link
-$(OUTPUT_DIR)/$(OUTPUT_NAME).exe : $(OBJS)	$(CPP_OBJS)
+$(BUILD_DIR)/$(TARGET_NAME).exe : $(CPP_OBJS) $(OBJS) 
 	@mkdir -p $(dir $@)
 	@echo "Generating output $@..."
-	$(CPP) -o $@ $^ $(LFLAGS)
+	$(CPP) -o $@ $^ $(LD_FLAGS)
 	@echo "Target $@ done!"	
 		
 #Compile c files
-$(OUTPUT_DIR)/obj/%.o : $(SRC_PATH)/%.c		
+$(BUILD_DIR)/%.o : %.c		
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
-	@$(CC) -c $(CFLAGS) $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@ $(INCFLAGS)
 	
 #Compile cpp files
-$(OUTPUT_DIR)/cpp_obj/%.o : $(SRC_PATH)/%.cpp		
+$(BUILD_DIR)/%.o : %.cpp		
 	@mkdir -p $(dir $@)
 	@echo "Compiling $<..."
-	$(CPP) -std=c++11 -c $(CFLAGS) $< -o $@	
+	$(CPP) -std=c++11 $(CFLAGS) -c $< -o $@	$(INCFLAGS)
 		
 clean:
-	@echo "Cleaning..."
-	@rm -rf $(OUTPUT_DIR)
-	@rm -rf $(OBJS)
-	@echo "Done!"
+	$(RM) $(BUILD_DIR)/
+	
+log:
+	@printf "\nBuilding $(TARGET_NAME) whith the folowing setup:\n"
+	@printf "CPU      : $(CPU)\n"
+	@printf "PROFILE  : $(PROFILE)\n"
+	@printf "CC       : $(CC)\n"
+	@printf "CFLAGS   : $(CFLAGS)\n"
+	@printf "INCFLAGS : $(INCFLAGS)\n\n"
 
-printInfo:
-	@printf "Starting compilation:\n"
-	@printf "CPP: $(CPP)\n" 
-	@printf "OBJ: $(OBJS)\n"
-	@printf "SRC_DIR: $(SRC_PATH)\n"
-#	@printf "Compiler Flags: $(CC) $(CC_FLAGS)\n"
-#	@printf "Linker Flags: $(LD_FLAGS)\n"
-#	@printf "Output Dir: $(OUTPUT_DIR)\n"
-#	@printf "name: $(OUTPUT_NAME)\n"	
-#	@printf "obj: $(OBJS)\n"
-#	@printf "deps: $(DEPS)\n"
-	@printf "\n\n"
-
+prerequisites: dependenciesRequisites cpuRequisites profileRequisites
 #include dependency files auto gererated by gcc with -MMD and -MP flags in the last compilation	
 -include $(DEPS)
 
